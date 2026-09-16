@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "Employee Attendance Management",
+  "short_name": "Attendance",
+  "description": "Mobile-first Employee Attendance Management App powered by Google Sheets",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fdeff2",
+  "theme_color": "#ff6b6b",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

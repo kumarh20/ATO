@@ -1,0 +1,6 @@
+{
+  "name": "ATO - Attendance Officer",
+  "description": "ATO (Attendance Officer) - A mobile-first Employee Attendance Management App powered by Google Sheets & Apps Script with monthly reports, calendar heatmaps, and customizable week-off schedules.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,2349 @@
+<div class="relative min-h-screen pb-32 overflow-x-clip selection:bg-[#ff6b6b]/20">
+  
+  <!-- ================= TOP STICKY HEADER ================= -->
+  <header id="app-sticky-header" class="sticky top-0 z-40 w-full glass-header px-4 py-3 flex items-center justify-between transition-all duration-200 shadow-xs">
+    <div class="flex items-center gap-3">
+      <!-- Attendance Icon: click to reload app (Replacing hamburger icon) -->
+      <button
+        id="btn-header-attendance-reload"
+        type="button"
+        (click)="reloadApp()"
+        aria-label="Reload Application"
+        title="Attendance System • Click to Reload"
+        class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#ff6b6b]/20 to-[#ff8e53]/25 border border-[#ff6b6b]/30 text-[#ff6b6b] flex items-center justify-center hover:bg-[#ff6b6b]/30 active:scale-90 transition shadow-xs cursor-pointer group flex-shrink-0"
+      >
+        <mat-icon class="text-xl transition-transform duration-500 group-hover:rotate-180">how_to_reg</mat-icon>
+      </button>
+
+      <div>
+        <h1 id="header-app-title" class="text-base sm:text-lg font-bold text-[#2d2a4a] tracking-tight leading-tight">
+          ATO - Attendance Officer
+        </h1>
+        <p class="text-[11px] font-medium text-[#9b96b0] leading-none mt-0.5 flex items-center gap-1.5">
+          <span>{{ attService.settings().orgName || 'Acme Technologies' }}</span>
+          <span class="opacity-40">•</span>
+          <span class="text-[#ff6b6b] font-semibold">
+            @switch (activeTab()) {
+              @case ('dashboard') { {{ t().dashboard }} }
+              @case ('employees') { {{ t().employees }} }
+              @case ('reports') { {{ t().reports }} }
+              @case ('settings') { {{ t().settings }} }
+            }
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Header Actions (Language switch and + icon removed; clean sync indicator kept) -->
+    <div class="flex items-center gap-1.5">
+      <!-- Sync Status Indicator / Refresh -->
+      <button
+        id="btn-header-sync"
+        type="button"
+        (click)="attService.syncWithSheet(true)"
+        [disabled]="attService.isSyncing()"
+        aria-label="Sync with Google Sheet"
+        class="w-10 h-10 rounded-full flex items-center justify-center text-[#2d2a4a] hover:bg-white/70 active:scale-95 transition relative shadow-2xs border border-white/70 bg-white/40 cursor-pointer"
+        [title]="attService.isConnected() ? 'Google Sheet Connected - Click to Sync' : 'Demo Mode - Click to connect Sheet'"
+      >
+        <mat-icon [class.animate-spin]="attService.isSyncing()" class="text-xl">
+          sync
+        </mat-icon>
+        @if (attService.isConnected()) {
+          <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+        } @else {
+          <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-white"></span>
+        }
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= GOOGLE SHEET ONBOARDING BANNER ================= -->
+  @if (!attService.isConnected()) {
+    <div id="banner-sheet-connect" class="mx-4 mt-3 p-3 rounded-2xl glass-card border border-amber-200/60 flex items-center justify-between gap-3 text-sm">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded-xl bg-amber-100/80 text-amber-700 flex items-center justify-center flex-shrink-0">
+          <mat-icon class="text-base">cloud_off</mat-icon>
+        </div>
+        <div class="min-w-0">
+          <p class="font-semibold text-xs text-[#2d2a4a] truncate">Google Sheet Not Connected</p>
+          <p class="text-[10px] text-[#9b96b0] truncate">Using local demo data. Connect Apps Script for cloud sync.</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 flex-shrink-0">
+        <button
+          id="btn-banner-connect"
+          type="button"
+          (click)="openConnectSheetModal()"
+          class="px-3 py-1 rounded-full text-xs font-semibold text-white btn-coral whitespace-nowrap"
+        >
+          Connect
+        </button>
+        <button
+          id="btn-banner-code"
+          type="button"
+          (click)="openViewCodeModal()"
+          class="p-1 rounded-full text-[#2d2a4a] bg-white/70 hover:bg-white"
+          title="Get Code.gs script"
+        >
+          <mat-icon class="text-base">code</mat-icon>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="max-w-md mx-auto px-4 pt-3">
+
+    <!-- ================= TAB 1: DASHBOARD ================= -->
+    @if (activeTab() === 'dashboard') {
+      <div id="screen-dashboard" class="space-y-4 animate-tab-enter">
+        
+        <!-- CARD 1: TODAY'S ATTENDANCE SUMMARY (Proper Card with Top Right > Icon) -->
+        <section id="card-attendance-summary" class="glass-card p-5 space-y-4">
+          <!-- Card Header with Top Right > Button -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-9 h-9 rounded-2xl bg-[#ff6b6b]/15 text-[#ff6b6b] flex items-center justify-center flex-shrink-0">
+                <mat-icon class="text-lg">fact_check</mat-icon>
+              </div>
+              <div class="min-w-0">
+                <h2 class="text-base font-bold text-[#2d2a4a] truncate leading-tight">
+                  {{ t().attendance }}
+                </h2>
+                <p class="text-[11px] font-medium text-[#9b96b0] truncate leading-tight mt-0.5">
+                  {{ selectedDateFormatted() }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Top Right > Icon Button to Open Attendance Sheet -->
+            <button
+              id="btn-open-attendance-modal"
+              type="button"
+              (click)="openMarkAttendanceModal()"
+              aria-label="Mark Attendance"
+              title="Open Attendance"
+              class="w-8 h-8 rounded-full bg-white/75 hover:bg-white text-[#2d2a4a] flex items-center justify-center shadow-xs border border-white/80 active:scale-95 transition cursor-pointer"
+            >
+              <mat-icon class="text-base font-bold">chevron_right</mat-icon>
+            </button>
+          </div>
+
+          <!-- Attendance Rate Progress Bar -->
+          <div class="p-3.5 rounded-2xl bg-white/60 border border-white/70 space-y-2">
+            <div class="flex items-center justify-between text-xs font-semibold">
+              <span class="text-[#2d2a4a] flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>{{ selectedDateAttendanceRate() }}% Present Recorded</span>
+              </span>
+              <span class="text-[#9b96b0]">
+                {{ attService.selectedDateStats().present }} / {{ attService.activeEmployeesCount() }} Staff
+              </span>
+            </div>
+            
+            <div class="h-2.5 w-full bg-[#2d2a4a]/5 rounded-full overflow-hidden flex">
+              <div
+                class="h-full bg-emerald-500 transition-all duration-500"
+                [style.width.%]="selectedDateAttendanceRate()"
+                title="Present"
+              ></div>
+              <div
+                class="h-full bg-amber-400 transition-all duration-500"
+                [style.width.%]="(attService.selectedDateStats().halfDay / (attService.activeEmployeesCount() || 1)) * 100"
+                title="Half-day"
+              ></div>
+              <div
+                class="h-full bg-purple-400 transition-all duration-500"
+                [style.width.%]="(attService.selectedDateStats().leave / (attService.activeEmployeesCount() || 1)) * 100"
+                title="Leave"
+              ></div>
+              <div
+                class="h-full bg-rose-500 transition-all duration-500"
+                [style.width.%]="(attService.selectedDateStats().absent / (attService.activeEmployeesCount() || 1)) * 100"
+                title="Absent"
+              ></div>
+            </div>
+          </div>
+
+          <!-- 4 Clean Stat Pills Grid -->
+          <div class="grid grid-cols-4 gap-2 text-center">
+            <!-- Present -->
+            <div class="p-2 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+              <p class="text-[10px] font-bold text-emerald-700 uppercase tracking-tight">{{ t().present }}</p>
+              <p class="text-lg font-extrabold text-emerald-600 mt-0.5 leading-none">
+                {{ attService.selectedDateStats().present }}
+              </p>
+            </div>
+
+            <!-- Absent -->
+            <div class="p-2 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+              <p class="text-[10px] font-bold text-rose-700 uppercase tracking-tight">{{ t().absent }}</p>
+              <p class="text-lg font-extrabold text-rose-600 mt-0.5 leading-none">
+                {{ attService.selectedDateStats().absent }}
+              </p>
+            </div>
+
+            <!-- Leave / Half-day -->
+            <div class="p-2 rounded-2xl bg-purple-500/10 border border-purple-500/20">
+              <p class="text-[10px] font-bold text-purple-700 uppercase tracking-tight">{{ t().onLeave }}</p>
+              <p class="text-lg font-extrabold text-purple-600 mt-0.5 leading-none">
+                {{ attService.selectedDateStats().leave + attService.selectedDateStats().halfDay }}
+              </p>
+            </div>
+
+            <!-- Total Active -->
+            <div class="p-2 rounded-2xl bg-[#2d2a4a]/5 border border-[#2d2a4a]/10">
+              <p class="text-[10px] font-bold text-[#2d2a4a] uppercase tracking-tight">Total</p>
+              <p class="text-lg font-extrabold text-[#2d2a4a] mt-0.5 leading-none">
+                {{ attService.activeEmployeesCount() }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button
+              id="btn-quick-mark-present"
+              type="button"
+              (click)="quickMarkAllPresent()"
+              class="py-2.5 px-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-800 text-xs font-semibold flex items-center justify-center gap-1.5 border border-emerald-500/30 active:scale-95 transition cursor-pointer"
+            >
+              <mat-icon class="text-base text-emerald-600">done_all</mat-icon>
+              <span>{{ t().markAllPresent }}</span>
+            </button>
+
+            <button
+              id="btn-quick-open-mark"
+              type="button"
+              (click)="openMarkAttendanceModal()"
+              class="py-2.5 px-3 rounded-2xl btn-coral text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition cursor-pointer"
+            >
+              <mat-icon class="text-base">edit_calendar</mat-icon>
+              <span>{{ t().markAttendance }}</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- CARD 2: MONTHLY CALENDAR (Proper Card with Top Right > Icon) -->
+        <section id="card-dashboard-calendar" class="glass-card p-5 relative overflow-hidden space-y-3">
+          <!-- Month Header Controls with Top Right > Icon -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-9 h-9 rounded-2xl bg-indigo-500/15 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <mat-icon class="text-lg">calendar_month</mat-icon>
+              </div>
+              <div class="min-w-0">
+                <h2 id="calendar-header-label" class="text-base font-bold text-[#2d2a4a] truncate leading-tight">
+                  {{ calendarMonthTitle() }}
+                </h2>
+                <p class="text-[11px] font-medium text-[#9b96b0] truncate leading-tight mt-0.5">
+                  Select day to track status
+                </p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <!-- Month Prev/Next Switcher -->
+              <div class="flex items-center gap-0.5 bg-white/60 rounded-full p-0.5 border border-white/80">
+                <button
+                  id="btn-cal-prev-month"
+                  type="button"
+                  (click)="prevMonth()"
+                  aria-label="Previous Month"
+                  class="w-6 h-6 rounded-full flex items-center justify-center text-[#2d2a4a] hover:bg-white active:scale-95 transition cursor-pointer"
+                >
+                  <mat-icon class="text-sm">chevron_left</mat-icon>
+                </button>
+                <button
+                  id="btn-cal-next-month"
+                  type="button"
+                  (click)="nextMonth()"
+                  aria-label="Next Month"
+                  class="w-6 h-6 rounded-full flex items-center justify-center text-[#2d2a4a] hover:bg-white active:scale-95 transition cursor-pointer"
+                >
+                  <mat-icon class="text-sm">chevron_right</mat-icon>
+                </button>
+              </div>
+
+              <!-- Top Right > Icon Button to Open Heatmap & Reports Page -->
+              <button
+                id="btn-cal-open-reports"
+                type="button"
+                (click)="switchTab('reports')"
+                aria-label="Open Reports"
+                title="View Full Month Heatmap & Reports"
+                class="w-8 h-8 rounded-full bg-white/75 hover:bg-white text-[#2d2a4a] flex items-center justify-center shadow-xs border border-white/80 active:scale-95 transition cursor-pointer"
+              >
+                <mat-icon class="text-base font-bold">chevron_right</mat-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Weekday Labels -->
+          <div class="grid grid-cols-7 text-center pt-1">
+            <span class="text-[11px] font-semibold text-[#9b96b0]">Mon</span>
+            <span class="text-[11px] font-semibold text-[#9b96b0]">Tue</span>
+            <span class="text-[11px] font-semibold text-[#9b96b0]">Wed</span>
+            <span class="text-[11px] font-semibold text-[#9b96b0]">Thu</span>
+            <span class="text-[11px] font-semibold text-[#9b96b0]">Fri</span>
+            <span class="text-[11px] font-semibold text-[#9b96b0]">Sat</span>
+            <span class="text-[11px] font-semibold text-[#9b96b0]">Sun</span>
+          </div>
+
+          <!-- Calendar Grid Cells -->
+          <div class="grid grid-cols-7 gap-y-1.5 text-center items-center">
+            @for (day of calendarDays(); track day.dateStr) {
+              <div class="flex flex-col items-center justify-center py-0.5">
+                <button
+                  type="button"
+                  (click)="selectCalendarDate(day.dateStr)"
+                  [id]="'cal-day-' + day.dateStr"
+                  [class.btn-coral]="day.isSelected"
+                  [class.text-white]="day.isSelected"
+                  [class.font-bold]="day.isSelected || day.isToday"
+                  [class.text-[#2d2a4a]]="!day.isSelected && day.isCurrentMonth"
+                  [class.text-[#9b96b0]/50]="!day.isSelected && !day.isCurrentMonth"
+                  [class.ring-2]="day.isToday && !day.isSelected"
+                  [class.ring-[#ff6b6b]/60]="day.isToday && !day.isSelected"
+                  class="w-8 h-8 rounded-full flex items-center justify-center text-xs transition-all relative hover:bg-white/60 active:scale-95 cursor-pointer"
+                >
+                  <span>{{ day.dayNumber }}</span>
+
+                  @if (day.holiday) {
+                    <span class="absolute -top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-sky-500" title="Holiday: {{ day.holiday.label }}"></span>
+                  } @else if (day.isWeekOff) {
+                    <span class="absolute -top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-slate-400" title="Week-off"></span>
+                  } @else if (day.hasAttendance) {
+                    <span
+                      class="absolute -top-0.5 right-0.5 w-1.5 h-1.5 rounded-full"
+                      [class.bg-white]="day.isSelected"
+                      [class.bg-[#ff6b6b]]="!day.isSelected"
+                    ></span>
+                  }
+                </button>
+              </div>
+            }
+          </div>
+
+          <!-- Legend Bar -->
+          <div class="flex items-center justify-center gap-4 text-[10px] text-[#9b96b0] pt-2 border-t border-[#2d2a4a]/5">
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-[#ff6b6b]"></span> Recorded</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span> Holiday</span>
+            <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-400"></span> Week-off</span>
+          </div>
+        </section>
+
+        <!-- CARD 3: STAFF DIRECTORY (Proper Card with Top Right > Icon, DATA MINIMUM DIKHE) -->
+        <section id="card-staff-directory" class="glass-card p-5 space-y-3">
+          <!-- Card Header with Top Right > Button -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-9 h-9 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <mat-icon class="text-lg">groups</mat-icon>
+              </div>
+              <div class="min-w-0">
+                <h2 class="text-base font-bold text-[#2d2a4a] truncate leading-tight">
+                  {{ t().employees }}
+                </h2>
+                <p class="text-[11px] font-medium text-[#9b96b0] truncate leading-tight mt-0.5">
+                  {{ attService.activeEmployeesCount() }} Team Members Registered
+                </p>
+              </div>
+            </div>
+
+            <!-- Top Right > Icon Button to Open Employees Page -->
+            <button
+              id="btn-open-employees-page"
+              type="button"
+              (click)="switchTab('employees')"
+              aria-label="Open Employees Page"
+              title="View All Employees"
+              class="w-8 h-8 rounded-full bg-white/75 hover:bg-white text-[#2d2a4a] flex items-center justify-center shadow-xs border border-white/80 active:scale-95 transition cursor-pointer"
+            >
+              <mat-icon class="text-base font-bold">chevron_right</mat-icon>
+            </button>
+          </div>
+
+          <!-- Minimal Preview: Top 3 Employees Only (Clean, not cluttered) -->
+          @if (attService.employees().length === 0) {
+            <div class="py-4 text-center text-xs text-[#9b96b0]">
+              No employees registered yet.
+            </div>
+          } @else {
+            <div class="space-y-2">
+              @for (emp of previewEmployees(); track emp.id) {
+                @let statusInfo = attService.getEmployeeStatusForDate(emp.id, attService.selectedDate());
+                <div
+                  class="w-full text-left p-2.5 rounded-2xl bg-white/60 hover:bg-white/90 border border-white/70 shadow-xs flex items-center justify-between transition"
+                >
+                  <button
+                    type="button"
+                    class="flex items-center gap-2.5 min-w-0 flex-1 text-left cursor-pointer border-0 bg-transparent p-0"
+                    (click)="viewEmployeeDetail(emp)"
+                  >
+                    <div
+                      class="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs text-white flex-shrink-0 shadow-2xs"
+                      [style.backgroundColor]="emp.avatarColor"
+                    >
+                      {{ getInitials(emp.name) }}
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-xs font-bold text-[#2d2a4a] truncate leading-tight">
+                        {{ emp.name }}
+                      </p>
+                      <p class="text-[10px] text-[#9b96b0] truncate leading-tight mt-0.5">
+                        {{ emp.designation }} • {{ emp.department }}
+                      </p>
+                    </div>
+                  </button>
+
+                  <div class="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                    <span
+                      class="px-2 py-0.5 rounded-full text-[10px] font-semibold border flex-shrink-0"
+                      [class]="getStatusBadgeClass(statusInfo.status)"
+                    >
+                      {{ statusInfo.status }}
+                    </span>
+                    <button
+                      type="button"
+                      (click)="openEmployeeActionMenu(emp, $event)"
+                      aria-label="Employee Options"
+                      class="w-7 h-7 rounded-full flex items-center justify-center text-[#9b96b0] hover:text-[#2d2a4a] hover:bg-white/80 active:scale-95 transition cursor-pointer"
+                    >
+                      <mat-icon class="text-base">more_vert</mat-icon>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Full-width View All Employees Link -->
+            <button
+              type="button"
+              (click)="switchTab('employees')"
+              class="w-full mt-1 py-2.5 px-3 rounded-2xl bg-white/70 hover:bg-white text-xs font-semibold text-[#2d2a4a] flex items-center justify-between border border-white/80 shadow-xs active:scale-[0.99] transition cursor-pointer"
+            >
+              <span class="flex items-center gap-1.5">
+                <mat-icon class="text-sm text-[#ff6b6b]">badge</mat-icon>
+                <span>View All {{ attService.activeEmployeesCount() }} Employees</span>
+              </span>
+              <mat-icon class="text-sm text-[#ff6b6b]">arrow_forward</mat-icon>
+            </button>
+          }
+        </section>
+
+        <!-- CARD 4: MONTHLY SUMMARY & REPORTS (Proper Card with Top Right > Icon) -->
+        <section id="card-reports-summary" class="glass-card p-5 space-y-3">
+          <!-- Card Header with Top Right > Button -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-9 h-9 rounded-2xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <mat-icon class="text-lg">insights</mat-icon>
+              </div>
+              <div class="min-w-0">
+                <h2 class="text-base font-bold text-[#2d2a4a] truncate leading-tight">
+                  {{ t().monthlySummary }}
+                </h2>
+                <p class="text-[11px] font-medium text-[#9b96b0] truncate leading-tight mt-0.5">
+                  Heatmap, Individual Logs & PDF
+                </p>
+              </div>
+            </div>
+
+            <!-- Top Right > Icon Button to Open Reports Page -->
+            <button
+              id="btn-open-reports-page"
+              type="button"
+              (click)="switchTab('reports')"
+              aria-label="Open Reports Page"
+              title="Open Reports"
+              class="w-8 h-8 rounded-full bg-white/75 hover:bg-white text-[#2d2a4a] flex items-center justify-center shadow-xs border border-white/80 active:scale-95 transition cursor-pointer"
+            >
+              <mat-icon class="text-base font-bold">chevron_right</mat-icon>
+            </button>
+          </div>
+
+          <!-- Minimal Metrics Preview -->
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="p-2.5 rounded-2xl bg-white/60 border border-white/70">
+              <p class="text-[10px] font-semibold text-[#9b96b0] uppercase">Working Days</p>
+              <p class="text-base font-bold text-[#2d2a4a] mt-0.5">26</p>
+            </div>
+            <div class="p-2.5 rounded-2xl bg-white/60 border border-white/70">
+              <p class="text-[10px] font-semibold text-[#9b96b0] uppercase">Present Logs</p>
+              <p class="text-base font-bold text-emerald-600 mt-0.5">{{ attService.attendance().length }}</p>
+            </div>
+            <div class="p-2.5 rounded-2xl bg-white/60 border border-white/70">
+              <p class="text-[10px] font-semibold text-[#9b96b0] uppercase">Holidays</p>
+              <p class="text-base font-bold text-sky-600 mt-0.5">{{ attService.holidays().length }}</p>
+            </div>
+          </div>
+
+          <!-- Open Full Reports Button -->
+          <button
+            type="button"
+            (click)="switchTab('reports')"
+            class="w-full py-2.5 px-3 rounded-2xl bg-white/70 hover:bg-white text-xs font-semibold text-[#2d2a4a] flex items-center justify-between border border-white/80 shadow-xs active:scale-[0.99] transition cursor-pointer"
+          >
+            <span class="flex items-center gap-1.5">
+              <mat-icon class="text-sm text-[#ff6b6b]">assessment</mat-icon>
+              <span>Detailed Attendance Heatmap & Export</span>
+            </span>
+            <mat-icon class="text-sm text-[#ff6b6b]">arrow_forward</mat-icon>
+          </button>
+        </section>
+
+        <!-- CARD 5: GOOGLE SHEETS SYNC (Proper Card with Top Right > Icon) -->
+        <section id="card-sheets-summary" class="glass-card p-5 space-y-3">
+          <!-- Card Header with Top Right > Button -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-9 h-9 rounded-2xl bg-sky-500/15 text-sky-600 flex items-center justify-center flex-shrink-0">
+                <mat-icon class="text-lg">cloud_sync</mat-icon>
+              </div>
+              <div class="min-w-0">
+                <h2 class="text-base font-bold text-[#2d2a4a] truncate leading-tight">
+                  Google Sheets Cloud Sync
+                </h2>
+                <p class="text-[11px] font-medium text-[#9b96b0] truncate leading-tight mt-0.5">
+                  {{ attService.isConnected() ? 'Connected & Live Synchronized' : 'Offline Mode (Local Storage)' }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Top Right > Icon Button to Open Settings Page -->
+            <button
+              id="btn-open-settings-page"
+              type="button"
+              (click)="switchTab('settings')"
+              aria-label="Open Settings"
+              title="Open Settings & Script"
+              class="w-8 h-8 rounded-full bg-white/75 hover:bg-white text-[#2d2a4a] flex items-center justify-center shadow-xs border border-white/80 active:scale-95 transition cursor-pointer"
+            >
+              <mat-icon class="text-base font-bold">chevron_right</mat-icon>
+            </button>
+          </div>
+
+          <!-- Connection Status Info & Action -->
+          <div class="flex items-center justify-between p-3 rounded-2xl bg-white/60 border border-white/70">
+            <div class="flex items-center gap-2">
+              <span
+                class="w-2.5 h-2.5 rounded-full"
+                [class.bg-emerald-500]="attService.isConnected()"
+                [class.bg-amber-400]="!attService.isConnected()"
+              ></span>
+              <span class="text-xs font-semibold text-[#2d2a4a]">
+                {{ attService.isConnected() ? 'Google Sheet Active' : 'Demo Mode' }}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              (click)="attService.isConnected() ? attService.syncWithSheet(true) : openConnectSheetModal()"
+              class="px-3 py-1.5 rounded-full text-xs font-semibold btn-coral text-white active:scale-95 transition shadow-xs cursor-pointer"
+            >
+              {{ attService.isConnected() ? 'Sync Now' : 'Connect Sheet' }}
+            </button>
+          </div>
+        </section>
+
+      </div>
+    }
+
+    <!-- ================= TAB 2: EMPLOYEES ================= -->
+    @if (activeTab() === 'employees') {
+      <div id="screen-employees" class="space-y-4 animate-tab-enter">
+        
+        <!-- Search & Add Bar -->
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <mat-icon class="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9b96b0] text-lg">search</mat-icon>
+            <input
+              id="input-employee-search"
+              type="text"
+              [placeholder]="t().searchPlaceholder"
+              [value]="employeeSearchQuery()"
+              (input)="employeeSearchQuery.set($any($event.target).value)"
+              class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] placeholder-[#9b96b0] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+            />
+          </div>
+
+          <button
+            id="btn-add-employee-tab"
+            type="button"
+            (click)="openAddEmployeeModal()"
+            class="px-3.5 py-2.5 rounded-2xl btn-coral text-white text-xs font-semibold flex items-center gap-1 shadow-sm flex-shrink-0"
+          >
+            <mat-icon class="text-sm">add</mat-icon>
+            <span>{{ t().addEmployee }}</span>
+          </button>
+        </div>
+
+        <!-- Department Filter Chips -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          @for (dept of departments; track dept) {
+            <button
+              type="button"
+              (click)="selectedDepartmentFilter.set(dept)"
+              [class.btn-coral]="selectedDepartmentFilter() === dept"
+              [class.text-white]="selectedDepartmentFilter() === dept"
+              [class.bg-white/70]="selectedDepartmentFilter() !== dept"
+              [class.text-[#2d2a4a]]="selectedDepartmentFilter() !== dept"
+              class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition shadow-xs border border-white/80"
+            >
+              {{ dept === 'All' ? t().allDepartments : dept }}
+            </button>
+          }
+        </div>
+
+        <!-- Employees List -->
+        @if (filteredEmployees().length === 0) {
+          <div id="empty-employees-filtered" class="py-16 text-center glass-card p-6">
+            <div class="w-12 h-12 rounded-full bg-white/70 mx-auto flex items-center justify-center text-[#9b96b0] mb-2 shadow-sm">
+              <mat-icon>person_search</mat-icon>
+            </div>
+            <p class="text-sm font-semibold text-[#2d2a4a]">{{ t().noEmployeesFound }}</p>
+          </div>
+        } @else {
+          <div class="space-y-3">
+            @for (emp of filteredEmployees(); track emp.id) {
+              @let todayStatus = attService.getEmployeeStatusForDate(emp.id, attService.selectedDate());
+              <div
+                [id]="'employee-card-' + emp.id"
+                class="glass-card-sm p-4 flex items-center justify-between border border-white/70"
+              >
+                <button
+                  type="button"
+                  (click)="viewEmployeeDetail(emp)"
+                  class="flex items-center gap-3 min-w-0 flex-1 text-left hover:opacity-90 transition cursor-pointer"
+                >
+                  <!-- Avatar with Initials -->
+                  <div
+                    class="w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm text-white shadow-xs flex-shrink-0"
+                    [style.backgroundColor]="emp.avatarColor"
+                  >
+                    {{ getInitials(emp.name) }}
+                  </div>
+
+                  <div class="min-w-0">
+                    <p class="text-sm font-bold text-[#2d2a4a] truncate leading-tight">
+                      {{ emp.name }}
+                    </p>
+                    <p class="text-xs text-[#9b96b0] truncate leading-tight mt-0.5">
+                      {{ emp.designation }}
+                    </p>
+                    <span class="inline-block mt-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-[#2d2a4a]/5 text-[#2d2a4a]">
+                      {{ emp.department }}
+                    </span>
+                  </div>
+                </button>
+
+                <!-- Right Actions -->
+                <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <span
+                    class="px-2.5 py-1 rounded-full text-[11px] font-semibold border"
+                    [class]="getStatusBadgeClass(todayStatus.status)"
+                  >
+                    {{ todayStatus.status }}
+                  </span>
+
+                  <button
+                    type="button"
+                    (click)="openEmployeeActionMenu(emp, $event)"
+                    aria-label="Employee Options"
+                    class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0] hover:text-[#2d2a4a] hover:bg-white/80 active:scale-95 transition cursor-pointer"
+                  >
+                    <mat-icon class="text-base">more_vert</mat-icon>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+      </div>
+    }
+
+    <!-- ================= TAB 3: REPORTS ================= -->
+    @if (activeTab() === 'reports') {
+      <div id="screen-reports" class="space-y-4 animate-tab-enter">
+        
+        <!-- Report Header Controls -->
+        <div class="glass-card p-4 space-y-3">
+          <!-- Select Employee Chips -->
+          <div>
+            <span class="text-xs font-semibold text-[#9b96b0] block mb-1.5">{{ t().selectEmployee }}</span>
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+              @for (emp of attService.employees(); track emp.id) {
+                <button
+                  type="button"
+                  (click)="reportEmployeeId.set(emp.id)"
+                  [class.btn-coral]="reportEmployeeId() === emp.id"
+                  [class.text-white]="reportEmployeeId() === emp.id"
+                  [class.bg-white/75]="reportEmployeeId() !== emp.id"
+                  [class.text-[#2d2a4a]]="reportEmployeeId() !== emp.id"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition shadow-xs border border-white/80"
+                >
+                  <span
+                    class="w-4 h-4 rounded-full text-[9px] flex items-center justify-center text-white"
+                    [style.backgroundColor]="emp.avatarColor"
+                  >
+                    {{ getInitials(emp.name) }}
+                  </span>
+                  <span>{{ emp.name }}</span>
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Month Selector & Export Action -->
+          <div class="flex items-center justify-between pt-1 border-t border-[#2d2a4a]/5">
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                (click)="prevMonth()"
+                class="w-7 h-7 rounded-full bg-white/70 flex items-center justify-center text-[#2d2a4a] hover:bg-white"
+              >
+                <mat-icon class="text-sm">chevron_left</mat-icon>
+              </button>
+              <span class="text-xs font-bold text-[#2d2a4a] px-2">
+                {{ calendarMonthTitle() }}
+              </span>
+              <button
+                type="button"
+                (click)="nextMonth()"
+                class="w-7 h-7 rounded-full bg-white/70 flex items-center justify-center text-[#2d2a4a] hover:bg-white"
+              >
+                <mat-icon class="text-sm">chevron_right</mat-icon>
+              </button>
+            </div>
+
+            <button
+              id="btn-print-report"
+              type="button"
+              (click)="printReport()"
+              class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/80 text-[#2d2a4a] hover:bg-white border border-white/80 shadow-xs flex items-center gap-1"
+            >
+              <mat-icon class="text-sm">print</mat-icon>
+              <span>{{ t().exportPdf }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Monthly Report Summary Card -->
+        @if (activeMonthlyReport(); as rpt) {
+          <div id="report-summary-card" class="glass-card p-5 space-y-4">
+            
+            <!-- Progress Circle & Main Stat -->
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-bold text-[#2d2a4a] leading-tight">{{ rpt.employee.name }}</h3>
+                <p class="text-xs text-[#9b96b0]">{{ rpt.employee.designation }} • {{ rpt.employee.department }}</p>
+                
+                <div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ff6b6b]/10 text-[#ff6b6b] text-xs font-semibold">
+                  <mat-icon class="text-sm">verified</mat-icon>
+                  <span>{{ rpt.attendancePercentage }}% Attendance</span>
+                </div>
+              </div>
+
+              <!-- Circular Progress Visual Ring -->
+              <div class="relative w-20 h-20 flex items-center justify-center flex-shrink-0">
+                <svg class="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                  <!-- Background circle -->
+                  <path
+                    class="text-white/60"
+                    stroke-width="3.5"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <!-- Progress circle -->
+                  <path
+                    class="text-[#ff6b6b] transition-all duration-700"
+                    stroke-dasharray="100, 100"
+                    [attr.stroke-dashoffset]="100 - rpt.attendancePercentage"
+                    stroke-width="3.5"
+                    stroke-linecap="round"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <div class="absolute text-center">
+                  <span class="text-sm font-bold text-[#2d2a4a]">{{ rpt.attendancePercentage }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mini Breakdown Stat Cards Grid -->
+            <div class="grid grid-cols-3 gap-2 pt-2">
+              <div class="p-2.5 rounded-2xl bg-emerald-50/80 border border-emerald-100 text-center">
+                <p class="text-[10px] font-semibold text-emerald-800 uppercase">{{ t().present }}</p>
+                <p class="text-base font-bold text-emerald-600">{{ rpt.presentDays }}</p>
+              </div>
+
+              <div class="p-2.5 rounded-2xl bg-rose-50/80 border border-rose-100 text-center">
+                <p class="text-[10px] font-semibold text-rose-800 uppercase">{{ t().absent }}</p>
+                <p class="text-base font-bold text-rose-600">{{ rpt.absentDays }}</p>
+              </div>
+
+              <div class="p-2.5 rounded-2xl bg-amber-50/80 border border-amber-100 text-center">
+                <p class="text-[10px] font-semibold text-amber-800 uppercase">{{ t().halfDay }}</p>
+                <p class="text-base font-bold text-amber-600">{{ rpt.halfDays }}</p>
+              </div>
+
+              <div class="p-2.5 rounded-2xl bg-purple-50/80 border border-purple-100 text-center">
+                <p class="text-[10px] font-semibold text-purple-800 uppercase">{{ t().onLeave }}</p>
+                <p class="text-base font-bold text-purple-600">{{ rpt.leaveDays }}</p>
+              </div>
+
+              <div class="p-2.5 rounded-2xl bg-sky-50/80 border border-sky-100 text-center">
+                <p class="text-[10px] font-semibold text-sky-800 uppercase">{{ t().holiday }}</p>
+                <p class="text-base font-bold text-sky-600">{{ rpt.holidays }}</p>
+              </div>
+
+              <div class="p-2.5 rounded-2xl bg-slate-100/80 border border-slate-200 text-center">
+                <p class="text-[10px] font-semibold text-slate-700 uppercase">{{ t().workingDays }}</p>
+                <p class="text-base font-bold text-slate-800">{{ rpt.workingDays }}</p>
+              </div>
+            </div>
+
+            <!-- Heatmap Calendar for Selected Month -->
+            <div class="pt-3 border-t border-[#2d2a4a]/5">
+              <h4 class="text-xs font-bold text-[#2d2a4a] mb-2">Monthly Heatmap Grid</h4>
+              <div class="grid grid-cols-7 gap-1 text-center">
+                @for (day of calendarDays(); track day.dateStr) {
+                  @if (day.isCurrentMonth) {
+                    @let status = rpt.dailyStatuses[day.dateStr] || 'Absent';
+                    <div
+                      class="p-1 rounded-xl text-[10px] font-semibold flex flex-col items-center justify-center transition"
+                      [class.bg-emerald-100]="status === 'Present'"
+                      [class.text-emerald-800]="status === 'Present'"
+                      [class.bg-rose-100]="status === 'Absent'"
+                      [class.text-rose-800]="status === 'Absent'"
+                      [class.bg-amber-100]="status === 'Half-day'"
+                      [class.text-amber-800]="status === 'Half-day'"
+                      [class.bg-purple-100]="status === 'Leave'"
+                      [class.text-purple-800]="status === 'Leave'"
+                      [class.bg-sky-100]="status === 'Holiday'"
+                      [class.text-sky-800]="status === 'Holiday'"
+                      [class.bg-slate-200]="status === 'Week-off'"
+                      [class.text-slate-600]="status === 'Week-off'"
+                      [title]="day.dateStr + ': ' + status"
+                    >
+                      <span>{{ day.dayNumber }}</span>
+                    </div>
+                  }
+                }
+              </div>
+
+              <!-- Heatmap Legend -->
+              <div class="flex items-center justify-center gap-3 text-[10px] text-[#9b96b0] mt-3 flex-wrap">
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-400"></span> Present</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-rose-400"></span> Absent</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-amber-400"></span> Half-day</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-purple-400"></span> Leave</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-sky-400"></span> Holiday</span>
+                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-slate-300"></span> Week-off</span>
+              </div>
+            </div>
+
+          </div>
+        }
+
+      </div>
+    }
+
+    <!-- ================= TAB 4: SETTINGS ================= -->
+    @if (activeTab() === 'settings') {
+      <div id="screen-settings" class="space-y-3 animate-tab-enter">
+        
+        <!-- Header notice for settings overview -->
+        <div class="px-1 py-1 flex items-center justify-between">
+          <p class="text-xs font-semibold text-[#2d2a4a]">Preferences & Configuration</p>
+          <span class="text-[11px] text-[#9b96b0]">Tap any card to configure</span>
+        </div>
+
+        <!-- 1. Google Sheet Connection Overview Card -->
+        <div
+          id="card-settings-sheet"
+          (click)="openSettingsModal('settingsSheet')"
+          class="glass-card p-4 sm:p-4.5 flex items-center justify-between cursor-pointer hover:bg-white/90 active:scale-[0.99] transition duration-150 shadow-xs border border-white/80 group"
+          role="button"
+          tabindex="0"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-2xl bg-emerald-100/80 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+              <mat-icon class="text-xl">table_chart</mat-icon>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm font-bold text-[#2d2a4a] group-hover:text-[#ff6b6b] transition">Google Sheet Sync</h3>
+              <p class="text-xs text-[#9b96b0] truncate">
+                {{ attService.isConnected() ? 'Cloud database connected • Live sync' : 'Demo local mode • Tap to connect' }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span
+              class="px-2.5 py-1 rounded-full text-[11px] font-semibold"
+              [class.bg-emerald-100]="attService.isConnected()"
+              [class.text-emerald-700]="attService.isConnected()"
+              [class.bg-amber-100]="!attService.isConnected()"
+              [class.text-amber-700]="!attService.isConnected()"
+            >
+              {{ attService.isConnected() ? 'Connected' : 'Demo Mode' }}
+            </span>
+            <mat-icon class="text-lg text-[#9b96b0] group-hover:text-[#ff6b6b] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </div>
+        </div>
+
+        <!-- 2. Organization Settings Overview Card -->
+        <div
+          id="card-settings-org"
+          (click)="openSettingsModal('settingsOrg')"
+          class="glass-card p-4 sm:p-4.5 flex items-center justify-between cursor-pointer hover:bg-white/90 active:scale-[0.99] transition duration-150 shadow-xs border border-white/80 group"
+          role="button"
+          tabindex="0"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-2xl bg-purple-100/80 text-purple-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+              <mat-icon class="text-xl">business</mat-icon>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm font-bold text-[#2d2a4a] group-hover:text-[#ff6b6b] transition">{{ t().orgSettings }}</h3>
+              <p class="text-xs text-[#9b96b0] truncate">
+                {{ attService.settings().orgName || 'Acme Technologies' }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-100">
+              {{ attService.employees().length }} Staff
+            </span>
+            <mat-icon class="text-lg text-[#9b96b0] group-hover:text-[#ff6b6b] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </div>
+        </div>
+
+        <!-- 3. Week-off Schedule Setup Overview Card -->
+        <div
+          id="card-settings-weekoff"
+          (click)="openSettingsModal('settingsWeekOff')"
+          class="glass-card p-4 sm:p-4.5 flex items-center justify-between cursor-pointer hover:bg-white/90 active:scale-[0.99] transition duration-150 shadow-xs border border-white/80 group"
+          role="button"
+          tabindex="0"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-2xl bg-indigo-100/80 text-indigo-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+              <mat-icon class="text-xl">weekend</mat-icon>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm font-bold text-[#2d2a4a] group-hover:text-[#ff6b6b] transition">{{ t().weekOffSchedule }}</h3>
+              <p class="text-xs text-[#9b96b0] truncate">
+                {{ weekOffSummary() }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+              {{ attService.weekOffDaysSet().size }} Off Days
+            </span>
+            <mat-icon class="text-lg text-[#9b96b0] group-hover:text-[#ff6b6b] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </div>
+        </div>
+
+        <!-- 4. Holiday Calendar Overview Card -->
+        <div
+          id="card-settings-holidays"
+          (click)="openSettingsModal('settingsHolidays')"
+          class="glass-card p-4 sm:p-4.5 flex items-center justify-between cursor-pointer hover:bg-white/90 active:scale-[0.99] transition duration-150 shadow-xs border border-white/80 group"
+          role="button"
+          tabindex="0"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-2xl bg-sky-100/80 text-sky-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+              <mat-icon class="text-xl">celebration</mat-icon>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm font-bold text-[#2d2a4a] group-hover:text-[#ff6b6b] transition">{{ t().holidayCalendar }}</h3>
+              <p class="text-xs text-[#9b96b0] truncate">
+                {{ holidaysSummary() }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-100">
+              {{ attService.holidays().length }} Listed
+            </span>
+            <mat-icon class="text-lg text-[#9b96b0] group-hover:text-[#ff6b6b] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </div>
+        </div>
+
+        <!-- 5. Language Selection Overview Card -->
+        <div
+          id="card-settings-language"
+          (click)="openSettingsModal('settingsLanguage')"
+          class="glass-card p-4 sm:p-4.5 flex items-center justify-between cursor-pointer hover:bg-white/90 active:scale-[0.99] transition duration-150 shadow-xs border border-white/80 group"
+          role="button"
+          tabindex="0"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-2xl bg-rose-100/80 text-[#ff6b6b] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+              <mat-icon class="text-xl">translate</mat-icon>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm font-bold text-[#2d2a4a] group-hover:text-[#ff6b6b] transition">{{ t().language }}</h3>
+              <p class="text-xs text-[#9b96b0] truncate">
+                {{ languageSummary() }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-[#ff6b6b] border border-rose-100 uppercase">
+              {{ currentLang() }}
+            </span>
+            <mat-icon class="text-lg text-[#9b96b0] group-hover:text-[#ff6b6b] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </div>
+        </div>
+
+        <!-- 6. App & PWA Info Overview Card -->
+        <div
+          id="card-settings-about"
+          (click)="openSettingsModal('settingsAbout')"
+          class="glass-card p-4 sm:p-4.5 flex items-center justify-between cursor-pointer hover:bg-white/90 active:scale-[0.99] transition duration-150 shadow-xs border border-white/80 group"
+          role="button"
+          tabindex="0"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-11 h-11 rounded-2xl bg-amber-100/80 text-amber-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+              <mat-icon class="text-xl">smartphone</mat-icon>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm font-bold text-[#2d2a4a] group-hover:text-[#ff6b6b] transition">App & Offline Mode</h3>
+              <p class="text-xs text-[#9b96b0] truncate">
+                ATO v2.0 • Zero Local Storage • Cloud First
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+              {{ isInstalled() ? 'Installed' : 'Ready' }}
+            </span>
+            <mat-icon class="text-lg text-[#9b96b0] group-hover:text-[#ff6b6b] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </div>
+        </div>
+
+        <!-- App Footer Info -->
+        <div class="pt-3 pb-2 text-[11px] text-[#9b96b0] text-center">
+          ATO - Attendance Officer • Version 2.0 • Powered by Google Sheets
+        </div>
+
+      </div>
+    }
+
+  </main>
+
+  <!-- ================= FLOATING BOTTOM NAVIGATION BAR ================= -->
+  <nav id="app-bottom-nav" class="fixed bottom-5 left-4 right-4 max-w-md mx-auto z-40">
+    <div class="relative glass-card px-4 py-2.5 flex items-center justify-around rounded-full shadow-lg border border-white/90">
+      
+      <!-- Tab 1: Dashboard (Calendar) -->
+      <button
+        id="nav-tab-dashboard"
+        type="button"
+        (click)="switchTab('dashboard')"
+        [class.btn-coral]="activeTab() === 'dashboard'"
+        [class.text-white]="activeTab() === 'dashboard'"
+        [class.text-[#9b96b0]]="activeTab() !== 'dashboard'"
+        class="w-12 h-11 rounded-2xl flex items-center justify-center transition active:scale-95 cursor-pointer"
+        aria-label="Dashboard"
+        title="Dashboard"
+      >
+        <mat-icon class="text-xl">calendar_today</mat-icon>
+      </button>
+
+      <!-- Tab 2: Employees (Checklist / Users) -->
+      <button
+        id="nav-tab-employees"
+        type="button"
+        (click)="switchTab('employees')"
+        [class.btn-coral]="activeTab() === 'employees'"
+        [class.text-white]="activeTab() === 'employees'"
+        [class.text-[#9b96b0]]="activeTab() !== 'employees'"
+        class="w-12 h-11 rounded-2xl flex items-center justify-center transition active:scale-95 cursor-pointer"
+        aria-label="Employees"
+        title="Employees"
+      >
+        <mat-icon class="text-xl">groups</mat-icon>
+      </button>
+
+      <!-- Tab 3: Reports (Clock / Analytics) -->
+      <button
+        id="nav-tab-reports"
+        type="button"
+        (click)="switchTab('reports')"
+        [class.btn-coral]="activeTab() === 'reports'"
+        [class.text-white]="activeTab() === 'reports'"
+        [class.text-[#9b96b0]]="activeTab() !== 'reports'"
+        class="w-12 h-11 rounded-2xl flex items-center justify-center transition active:scale-95 cursor-pointer"
+        aria-label="Reports"
+        title="Reports"
+      >
+        <mat-icon class="text-xl">insights</mat-icon>
+      </button>
+
+      <!-- Tab 4: Settings (Profile / Gear) -->
+      <button
+        id="nav-tab-settings"
+        type="button"
+        (click)="switchTab('settings')"
+        [class.btn-coral]="activeTab() === 'settings'"
+        [class.text-white]="activeTab() === 'settings'"
+        [class.text-[#9b96b0]]="activeTab() !== 'settings'"
+        class="w-12 h-11 rounded-2xl flex items-center justify-center transition active:scale-95 cursor-pointer"
+        aria-label="Settings"
+        title="Settings"
+      >
+        <mat-icon class="text-xl">tune</mat-icon>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= MODAL: EMPLOYEE ACTIONS BOTTOM SHEET (Niche se smooth slide-up) ================= -->
+  @if (activeModal() === 'employeeActions' && selectedEmployee(); as emp) {
+    @let todayStatus = attService.getEmployeeStatusForDate(emp.id, attService.selectedDate());
+    <div id="modal-employee-actions-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-employee-actions-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-employee-actions-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Pull / Drag Handle -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <!-- Employee Info Card Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-[#2d2a4a]/10">
+          <div class="flex items-center gap-3 min-w-0">
+            <div
+              class="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-base text-white shadow-sm flex-shrink-0"
+              [style.backgroundColor]="emp.avatarColor"
+            >
+              {{ getInitials(emp.name) }}
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-base font-bold text-[#2d2a4a] truncate leading-tight">{{ emp.name }}</h3>
+              <p class="text-xs text-[#9b96b0] truncate leading-tight mt-0.5">
+                {{ emp.designation }} • <span class="text-[#2d2a4a] font-medium">{{ emp.department }}</span>
+              </p>
+            </div>
+          </div>
+          
+          <span
+            class="px-2.5 py-1 rounded-full text-xs font-semibold border flex-shrink-0"
+            [class]="getStatusBadgeClass(todayStatus.status)"
+          >
+            {{ todayStatus.status }}
+          </span>
+        </div>
+
+        <!-- Action Items List -->
+        <div class="space-y-2 pt-1">
+          <!-- 1. Mark Attendance -->
+          <button
+            type="button"
+            (click)="closeModal(); openMarkAttendanceModal(emp.id)"
+            class="w-full p-3 rounded-2xl bg-white/70 hover:bg-white flex items-center justify-between text-left border border-white/80 shadow-2xs hover:shadow-xs active:scale-[0.98] transition cursor-pointer group"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+                <mat-icon class="text-xl">how_to_reg</mat-icon>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-[#2d2a4a]">Mark Attendance</p>
+                <p class="text-[11px] text-[#9b96b0]">Record present, absent, half-day or leave</p>
+              </div>
+            </div>
+            <mat-icon class="text-sm text-[#9b96b0] group-hover:text-[#2d2a4a] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </button>
+
+          <!-- 2. View Details & Monthly Report -->
+          <button
+            type="button"
+            (click)="closeModal(); viewEmployeeDetail(emp)"
+            class="w-full p-3 rounded-2xl bg-white/70 hover:bg-white flex items-center justify-between text-left border border-white/80 shadow-2xs hover:shadow-xs active:scale-[0.98] transition cursor-pointer group"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-sky-500/15 text-sky-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+                <mat-icon class="text-xl">badge</mat-icon>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-[#2d2a4a]">View Profile & Attendance Stats</p>
+                <p class="text-[11px] text-[#9b96b0]">Monthly %, working days and contact info</p>
+              </div>
+            </div>
+            <mat-icon class="text-sm text-[#9b96b0] group-hover:text-[#2d2a4a] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </button>
+
+          <!-- 3. Edit Employee -->
+          <button
+            type="button"
+            (click)="closeModal(); openEditEmployeeModal(emp)"
+            class="w-full p-3 rounded-2xl bg-white/70 hover:bg-white flex items-center justify-between text-left border border-white/80 shadow-2xs hover:shadow-xs active:scale-[0.98] transition cursor-pointer group"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+                <mat-icon class="text-xl">edit</mat-icon>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-[#2d2a4a]">Edit Employee Information</p>
+                <p class="text-[11px] text-[#9b96b0]">Name, role, department or phone</p>
+              </div>
+            </div>
+            <mat-icon class="text-sm text-[#9b96b0] group-hover:text-[#2d2a4a] group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </button>
+
+          <!-- 4. Delete Employee -->
+          <button
+            type="button"
+            (click)="deleteEmployee(emp.id)"
+            class="w-full p-3 rounded-2xl bg-rose-50/70 hover:bg-rose-50 flex items-center justify-between text-left border border-rose-200/70 shadow-2xs hover:shadow-xs active:scale-[0.98] transition cursor-pointer group"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-600 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition">
+                <mat-icon class="text-xl">delete_outline</mat-icon>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-rose-600">Delete Employee</p>
+                <p class="text-[11px] text-rose-400">Remove from roster and sync with Sheet</p>
+              </div>
+            </div>
+            <mat-icon class="text-sm text-rose-400 group-hover:text-rose-600 group-hover:translate-x-0.5 transition">chevron_right</mat-icon>
+          </button>
+        </div>
+
+        <!-- Cancel / Dismiss Button -->
+        <div class="pt-2">
+          <button
+            type="button"
+            (click)="closeModal()"
+            class="w-full py-3 rounded-2xl bg-white/80 hover:bg-white text-xs font-bold text-[#2d2a4a] border border-white/80 shadow-2xs active:scale-[0.99] transition cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: MARK ATTENDANCE (Matches "Create New Task" Screen 100%) ================= -->
+  @if (activeModal() === 'markAttendance') {
+    <div id="modal-mark-attendance-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-mark-attendance-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-mark-attendance-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4 animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <!-- Top Sheet Header: Back + Title + Close -->
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <div class="flex items-center gap-2">
+            <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#2d2a4a] hover:bg-white/60">
+              <mat-icon class="text-lg">chevron_left</mat-icon>
+            </button>
+            <h2 class="text-lg font-bold text-[#2d2a4a]">{{ t().markAttendance }}</h2>
+          </div>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0] hover:text-[#2d2a4a]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Status Pill Chips (like Meeting, Design, Free time in screenshot) -->
+        <div>
+          <span class="text-xs font-semibold text-[#9b96b0] block mb-2">{{ t().selectStatus }}</span>
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            @for (st of statusOptions; track st) {
+              <button
+                type="button"
+                (click)="markAttendanceForm.controls.status.setValue(st)"
+                [class.btn-coral]="markAttendanceForm.controls.status.value === st"
+                [class.text-white]="markAttendanceForm.controls.status.value === st"
+                [class.bg-white/70]="markAttendanceForm.controls.status.value !== st"
+                [class.text-[#2d2a4a]]="markAttendanceForm.controls.status.value !== st"
+                class="px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition shadow-xs border border-white/80"
+              >
+                {{ st }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Date Field (Starts / Ends style from screenshot) -->
+        <div>
+          <label for="input-mark-date" class="text-xs font-semibold text-[#9b96b0] block mb-1.5">{{ t().date }}</label>
+          <div class="relative">
+            <mat-icon class="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9b96b0] text-lg">calendar_today</mat-icon>
+            <input
+              id="input-mark-date"
+              type="date"
+              [formControl]="markAttendanceForm.controls.date"
+              class="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white/75 text-xs font-semibold text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+            />
+          </div>
+        </div>
+
+        <!-- Participants Chip Row (Exact screenshot pattern with + and remove 'X') -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-semibold text-[#9b96b0]">{{ t().selectEmployees }}</span>
+            <div class="flex items-center gap-2 text-[11px] font-semibold text-[#ff6b6b]">
+              <button type="button" (click)="selectAllEmployeesForMarking()">{{ t().selectAll }}</button>
+              <span>•</span>
+              <button type="button" (click)="clearAllEmployeesForMarking()">Clear</button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            @for (emp of attService.employees(); track emp.id) {
+              @let isSelected = selectedEmployeeIdsForMarking().includes(emp.id);
+              <button
+                type="button"
+                (click)="toggleEmployeeSelection(emp.id)"
+                [class.bg-white]="isSelected"
+                [class.border-[#ff6b6b]]="isSelected"
+                [class.border-white/80]="!isSelected"
+                class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/70 text-[#2d2a4a] border shadow-xs transition"
+              >
+                <span
+                  class="w-5 h-5 rounded-full text-[10px] flex items-center justify-center text-white"
+                  [style.backgroundColor]="emp.avatarColor"
+                >
+                  {{ getInitials(emp.name) }}
+                </span>
+                <span class="truncate max-w-[80px]">{{ emp.name }}</span>
+                <mat-icon class="text-xs text-[#9b96b0]">{{ isSelected ? 'check' : 'add' }}</mat-icon>
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Notes / Remarks (Stacked rounded input field from screenshot) -->
+        <div>
+          <label for="input-mark-note" class="text-xs font-semibold text-[#9b96b0] block mb-1.5">{{ t().notes }}</label>
+          <input
+            id="input-mark-note"
+            type="text"
+            [formControl]="markAttendanceForm.controls.note"
+            [placeholder]="t().notesPlaceholder"
+            class="w-full px-4 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] placeholder-[#9b96b0] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+          />
+        </div>
+
+        <!-- Toggle Switch: "Get alert for this task" pattern from screenshot -->
+        <div class="flex items-center justify-between p-3 rounded-2xl bg-white/60 border border-white/70">
+          <span class="text-xs font-semibold text-[#2d2a4a]">{{ t().getAlert }}</span>
+          <button
+            id="btn-toggle-alert"
+            type="button"
+            (click)="markAttendanceForm.controls.sendAlert.setValue(!markAttendanceForm.controls.sendAlert.value)"
+            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200"
+            [class.bg-[#ff6b6b]]="markAttendanceForm.controls.sendAlert.value"
+            [class.bg-[#2d2a4a]/20]="!markAttendanceForm.controls.sendAlert.value"
+          >
+            <span
+              class="inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 shadow-sm"
+              [class.translate-x-6]="markAttendanceForm.controls.sendAlert.value"
+              [class.translate-x-1]="!markAttendanceForm.controls.sendAlert.value"
+            ></span>
+          </button>
+        </div>
+
+        <!-- Bottom Full-width Gradient CTA Button ("Create Task" style) -->
+        <button
+          id="btn-submit-attendance"
+          type="button"
+          (click)="submitAttendance()"
+          class="w-full py-3.5 rounded-2xl text-sm font-bold text-white btn-coral shadow-md transition active:scale-[0.99]"
+        >
+          {{ t().save }}
+        </button>
+
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: ADD / EDIT EMPLOYEE ================= -->
+  @if (activeModal() === 'addEmployee' || activeModal() === 'editEmployee') {
+    <div id="modal-employee-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-employee-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-employee-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4 animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <h2 class="text-lg font-bold text-[#2d2a4a]">
+            {{ activeModal() === 'addEmployee' ? t().addEmployee : t().editEmployee }}
+          </h2>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0] hover:text-[#2d2a4a]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Full Name -->
+        <div>
+          <label for="input-emp-name" class="text-xs font-semibold text-[#9b96b0] block mb-1">{{ t().fullName }} *</label>
+          <input
+            id="input-emp-name"
+            type="text"
+            [formControl]="employeeForm.controls.name"
+            placeholder="e.g. Sarah Jenkins"
+            class="w-full px-4 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+          />
+        </div>
+
+        <!-- Designation -->
+        <div>
+          <label for="input-emp-designation" class="text-xs font-semibold text-[#9b96b0] block mb-1">{{ t().designation }} *</label>
+          <input
+            id="input-emp-designation"
+            type="text"
+            [formControl]="employeeForm.controls.designation"
+            placeholder="e.g. Senior Frontend Developer"
+            class="w-full px-4 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+          />
+        </div>
+
+        <!-- Department Chip Selector -->
+        <div>
+          <span class="text-xs font-semibold text-[#9b96b0] block mb-1.5">{{ t().department }}</span>
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+            @for (dept of departments; track dept) {
+              @if (dept !== 'All') {
+                <button
+                  type="button"
+                  (click)="employeeForm.controls.department.setValue(dept)"
+                  [class.btn-coral]="employeeForm.controls.department.value === dept"
+                  [class.text-white]="employeeForm.controls.department.value === dept"
+                  [class.bg-white/70]="employeeForm.controls.department.value !== dept"
+                  [class.text-[#2d2a4a]]="employeeForm.controls.department.value !== dept"
+                  class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition border border-white/80 shadow-xs"
+                >
+                  {{ dept }}
+                </button>
+              }
+            }
+          </div>
+        </div>
+
+        <!-- Phone & Email -->
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="input-emp-phone" class="text-xs font-semibold text-[#9b96b0] block mb-1">{{ t().phone }}</label>
+            <input
+              id="input-emp-phone"
+              type="text"
+              [formControl]="employeeForm.controls.phone"
+              placeholder="+1 (555) 000-0000"
+              class="w-full px-3 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+            />
+          </div>
+          <div>
+            <label for="input-emp-email" class="text-xs font-semibold text-[#9b96b0] block mb-1">{{ t().email }}</label>
+            <input
+              id="input-emp-email"
+              type="email"
+              [formControl]="employeeForm.controls.email"
+              placeholder="user@acme.com"
+              class="w-full px-3 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+            />
+          </div>
+        </div>
+
+        <!-- Joining Date & Avatar Color Picker -->
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="input-emp-joining" class="text-xs font-semibold text-[#9b96b0] block mb-1">{{ t().joiningDate }}</label>
+            <input
+              id="input-emp-joining"
+              type="date"
+              [formControl]="employeeForm.controls.joiningDate"
+              class="w-full px-3 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+            />
+          </div>
+
+          <div>
+            <span class="text-xs font-semibold text-[#9b96b0] block mb-1">Avatar Color</span>
+            <div class="flex items-center gap-1.5 py-1">
+              @for (color of avatarColors; track color) {
+                <button
+                  type="button"
+                  (click)="employeeForm.controls.avatarColor.setValue(color)"
+                  [style.backgroundColor]="color"
+                  [class.ring-2]="employeeForm.controls.avatarColor.value === color"
+                  [class.ring-[#2d2a4a]]="employeeForm.controls.avatarColor.value === color"
+                  class="w-6 h-6 rounded-full transition shadow-xs"
+                ><span class="sr-only">Color {{ color }}</span></button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          id="btn-save-employee"
+          type="button"
+          (click)="saveEmployee()"
+          class="w-full py-3.5 rounded-2xl text-sm font-bold text-white btn-coral shadow-md transition active:scale-[0.99]"
+        >
+          {{ activeModal() === 'addEmployee' ? t().addEmployee : t().editEmployee }}
+        </button>
+
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: EMPLOYEE DETAIL ================= -->
+  @if (activeModal() === 'employeeDetail' && selectedEmployee(); as emp) {
+    <div id="modal-employee-detail-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-employee-detail-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-employee-detail-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4 animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+        
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <h2 class="text-lg font-bold text-[#2d2a4a]">{{ t().employeeDetails }}</h2>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0] hover:text-[#2d2a4a]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Profile Header -->
+        <div class="flex items-center gap-4">
+          <div
+            class="w-16 h-16 rounded-3xl flex items-center justify-center text-xl font-bold text-white shadow-md flex-shrink-0"
+            [style.backgroundColor]="emp.avatarColor"
+          >
+            {{ getInitials(emp.name) }}
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-base font-bold text-[#2d2a4a] truncate leading-tight">{{ emp.name }}</h3>
+            <p class="text-xs text-[#9b96b0] truncate">{{ emp.designation }}</p>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[#2d2a4a]/5 text-[#2d2a4a]">
+                {{ emp.department }}
+              </span>
+              <span class="text-[10px] text-[#9b96b0] font-mono">
+                ID: {{ emp.id }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact details -->
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="p-2.5 rounded-xl bg-white/70 border border-white/80">
+            <span class="text-[10px] text-[#9b96b0] block">{{ t().phone }}</span>
+            <span class="font-semibold text-[#2d2a4a]">{{ emp.phone || 'N/A' }}</span>
+          </div>
+          <div class="p-2.5 rounded-xl bg-white/70 border border-white/80">
+            <span class="text-[10px] text-[#9b96b0] block">{{ t().email }}</span>
+            <span class="font-semibold text-[#2d2a4a] truncate block">{{ emp.email || 'N/A' }}</span>
+          </div>
+        </div>
+
+        <!-- Monthly Progress Ring & Stats -->
+        @if (selectedEmployeeDetailReport(); as rpt) {
+          <div class="p-4 rounded-2xl bg-white/70 border border-white/80 space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold text-[#2d2a4a]">Monthly Attendance: {{ rpt.attendancePercentage }}%</p>
+                <p class="text-[11px] text-[#9b96b0]">{{ rpt.presentDays }} Present / {{ rpt.workingDays }} Working Days</p>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold btn-coral text-white">
+                {{ rpt.attendancePercentage }}%
+              </span>
+            </div>
+
+            <!-- Mini stats -->
+            <div class="grid grid-cols-4 gap-1.5 text-center text-[10px]">
+              <div class="p-1.5 rounded-lg bg-emerald-50 text-emerald-700">
+                <span class="block font-bold text-sm">{{ rpt.presentDays }}</span>
+                <span>Present</span>
+              </div>
+              <div class="p-1.5 rounded-lg bg-rose-50 text-rose-700">
+                <span class="block font-bold text-sm">{{ rpt.absentDays }}</span>
+                <span>Absent</span>
+              </div>
+              <div class="p-1.5 rounded-lg bg-amber-50 text-amber-700">
+                <span class="block font-bold text-sm">{{ rpt.halfDays }}</span>
+                <span>Half-day</span>
+              </div>
+              <div class="p-1.5 rounded-lg bg-purple-50 text-purple-700">
+                <span class="block font-bold text-sm">{{ rpt.leaveDays }}</span>
+                <span>Leave</span>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Actions -->
+        <div class="flex items-center gap-2 pt-2">
+          <button
+            type="button"
+            (click)="openEditEmployeeModal(emp)"
+            class="flex-1 py-2.5 rounded-xl bg-white/80 hover:bg-white text-xs font-bold text-[#2d2a4a] border border-white/80 shadow-xs flex items-center justify-center gap-1"
+          >
+            <mat-icon class="text-sm">edit</mat-icon>
+            <span>{{ t().editEmployee }}</span>
+          </button>
+          <button
+            type="button"
+            (click)="deleteEmployee(emp.id)"
+            class="py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-600 border border-rose-200 shadow-xs flex items-center justify-center gap-1"
+          >
+            <mat-icon class="text-sm">delete</mat-icon>
+            <span>{{ t().deleteEmployee }}</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: ADD HOLIDAY ================= -->
+  @if (activeModal() === 'addHoliday') {
+    <div id="modal-holiday-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-holiday-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-holiday-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <h2 class="text-lg font-bold text-[#2d2a4a]">{{ t().addHoliday }}</h2>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <div>
+          <label for="input-holiday-name" class="text-xs font-semibold text-[#9b96b0] block mb-1">{{ t().holidayTitle }} *</label>
+          <input
+            id="input-holiday-name"
+            type="text"
+            [formControl]="holidayForm.controls.label"
+            placeholder="e.g. Diwali / Republic Day"
+            class="w-full px-4 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+          />
+        </div>
+
+        <div>
+          <label for="input-holiday-date" class="text-xs font-semibold text-[#9b96b0] block mb-1">{{ t().holidayDate }} *</label>
+          <input
+            id="input-holiday-date"
+            type="date"
+            [formControl]="holidayForm.controls.date"
+            class="w-full px-4 py-2.5 rounded-2xl bg-white/75 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+          />
+        </div>
+
+        <button
+          id="btn-save-holiday"
+          type="button"
+          (click)="saveHoliday()"
+          class="w-full py-3.5 rounded-2xl text-sm font-bold text-white btn-coral shadow-md transition active:scale-[0.99]"
+        >
+          {{ t().save }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: GOOGLE SHEET SYNC (SETTINGS DIALOG) ================= -->
+  @if (activeModal() === 'connectSheet' || activeModal() === 'settingsSheet') {
+    <div id="modal-connect-sheet-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-connect-sheet-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-connect-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+              <mat-icon class="text-base">table_chart</mat-icon>
+            </div>
+            <h2 class="text-base font-bold text-[#2d2a4a]">{{ t().connectGoogleSheet }}</h2>
+          </div>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Connection Status Overview inside dialog -->
+        <div class="p-3.5 rounded-2xl border transition"
+             [class.bg-emerald-50]="attService.isConnected()"
+             [class.border-emerald-200]="attService.isConnected()"
+             [class.bg-amber-50]="!attService.isConnected()"
+             [class.border-amber-200]="!attService.isConnected()">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full"
+                    [class.bg-emerald-500]="attService.isConnected()"
+                    [class.animate-pulse]="attService.isConnected()"
+                    [class.bg-amber-500]="!attService.isConnected()"></span>
+              <p class="text-xs font-bold"
+                 [class.text-emerald-800]="attService.isConnected()"
+                 [class.text-amber-800]="!attService.isConnected()">
+                {{ attService.isConnected() ? 'Connected to Google Sheet' : 'Offline / Demo Preview Mode' }}
+              </p>
+            </div>
+            @if (attService.lastSyncedTime()) {
+              <span class="text-[10px] text-emerald-600 font-medium">Synced {{ attService.lastSyncedTime() }}</span>
+            }
+          </div>
+          <p class="text-[11px] mt-1"
+             [class.text-emerald-700]="attService.isConnected()"
+             [class.text-amber-700]="!attService.isConnected()">
+            {{ attService.isConnected() ? 'Real-time two-way cloud sync active with Google Apps Script.' : 'Changes remain in temporary memory. Connect a sheet to persist data forever.' }}
+          </p>
+        </div>
+
+        <div>
+          <label for="input-sheet-url" class="text-xs font-semibold text-[#2d2a4a] block mb-1">{{ t().sheetUrlLabel }}</label>
+          <input
+            id="input-sheet-url"
+            type="url"
+            [formControl]="sheetUrlInput"
+            [placeholder]="t().sheetUrlPlaceholder"
+            class="w-full px-3.5 py-2.5 rounded-2xl bg-white/80 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs font-mono"
+          />
+        </div>
+
+        <div class="flex flex-col gap-2 pt-1">
+          <div class="flex items-center gap-2">
+            <button
+              id="btn-submit-sheet-url"
+              type="button"
+              (click)="submitSheetConnection()"
+              [disabled]="attService.isSyncing()"
+              class="flex-1 py-3 rounded-2xl text-xs font-bold text-white btn-coral shadow-md flex items-center justify-center gap-1"
+            >
+              <mat-icon [class.animate-spin]="attService.isSyncing()" class="text-sm">cloud_sync</mat-icon>
+              <span>{{ attService.isSyncing() ? 'Connecting...' : (attService.isConnected() ? 'Update Sheet URL' : t().connect) }}</span>
+            </button>
+
+            @if (attService.isConnected()) {
+              <button
+                id="btn-modal-sync-now"
+                type="button"
+                (click)="attService.syncWithSheet(true)"
+                [disabled]="attService.isSyncing()"
+                class="py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs flex items-center gap-1 transition"
+              >
+                <mat-icon [class.animate-spin]="attService.isSyncing()" class="text-sm">sync</mat-icon>
+                <span>Sync Now</span>
+              </button>
+            }
+          </div>
+
+          @if (attService.isConnected()) {
+            <button
+              id="btn-disconnect-sheet"
+              type="button"
+              (click)="disconnectSheet()"
+              class="w-full py-2.5 rounded-2xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition"
+            >
+              {{ t().disconnect }} from Sheet
+            </button>
+          }
+        </div>
+
+        <div class="p-3 rounded-2xl bg-[#2d2a4a]/5 text-xs text-[#2d2a4a] space-y-2">
+          <p class="font-bold flex items-center gap-1">
+            <mat-icon class="text-sm">help_outline</mat-icon>
+            Need the Apps Script code?
+          </p>
+          <p class="text-[11px] text-[#9b96b0]">
+            We've generated the complete, ready-to-paste Google Apps Script backend. You can copy it with 1 click.
+          </p>
+          <button
+            type="button"
+            (click)="openViewCodeModal()"
+            class="text-xs font-bold text-[#ff6b6b] hover:underline flex items-center gap-0.5"
+          >
+            <span>View 4-Step Setup Guide & Copy Script</span>
+            <mat-icon class="text-xs">arrow_forward</mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: ORGANIZATION PROFILE (SETTINGS DIALOG) ================= -->
+  @if (activeModal() === 'settingsOrg') {
+    <div id="modal-settings-org-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-settings-org-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-settings-org-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+              <mat-icon class="text-base">business</mat-icon>
+            </div>
+            <h2 class="text-base font-bold text-[#2d2a4a]">{{ t().orgSettings }}</h2>
+          </div>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <p class="text-xs text-[#9b96b0] leading-relaxed">
+          Configure your company or organization name. This is displayed on the header, printed monthly attendance registers, and exported reports.
+        </p>
+
+        <div>
+          <label for="input-modal-org-name" class="text-xs font-semibold text-[#2d2a4a] block mb-1.5">
+            Organization / Business Name
+          </label>
+          <input
+            id="input-modal-org-name"
+            type="text"
+            [formControl]="orgNameInput"
+            placeholder="e.g. Acme Technologies Pvt Ltd"
+            class="w-full px-3.5 py-2.5 rounded-2xl bg-white/80 text-xs text-[#2d2a4a] border border-white/80 focus:outline-none focus:ring-2 focus:ring-[#ff6b6b]/40 shadow-xs"
+          />
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-[#2d2a4a]/5 text-xs text-[#2d2a4a] space-y-1">
+          <p class="font-semibold flex items-center gap-1 text-[11px] text-[#9b96b0]">
+            <mat-icon class="text-sm text-purple-500">people</mat-icon>
+            Active Workforce
+          </p>
+          <p class="text-xs font-bold text-[#2d2a4a]">
+            {{ attService.employees().length }} Staff Registered
+          </p>
+        </div>
+
+        <div class="pt-2 flex items-center gap-2">
+          <button
+            type="button"
+            (click)="closeModal()"
+            class="flex-1 py-3 rounded-2xl text-xs font-semibold text-[#2d2a4a] bg-white/80 hover:bg-white border border-white/80 shadow-xs"
+          >
+            {{ t().cancel }}
+          </button>
+          <button
+            id="btn-save-org-modal"
+            type="button"
+            (click)="saveOrgName()"
+            class="flex-1 py-3 rounded-2xl text-xs font-bold text-white btn-coral shadow-md"
+          >
+            {{ t().save }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: WEEKLY OFF SCHEDULE (SETTINGS DIALOG) ================= -->
+  @if (activeModal() === 'settingsWeekOff') {
+    <div id="modal-settings-weekoff-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-settings-weekoff-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-settings-weekoff-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+              <mat-icon class="text-base">weekend</mat-icon>
+            </div>
+            <h2 class="text-base font-bold text-[#2d2a4a]">{{ t().weekOffSchedule }}</h2>
+          </div>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <p class="text-xs text-[#9b96b0] leading-relaxed">
+          Select standard recurring weekly off days. On these days, employee attendance defaults to Week-off status in daily markings and monthly summaries.
+        </p>
+
+        <!-- 7 Days Grid -->
+        <div class="grid grid-cols-7 gap-1.5 pt-1">
+          @for (w of weekdaysList; track w.key) {
+            @let isSelected = isWeekOffSelected(w.key);
+            <button
+              type="button"
+              (click)="toggleWeekOffDay(w.key)"
+              [class.btn-coral]="isSelected"
+              [class.text-white]="isSelected"
+              [class.bg-white/80]="!isSelected"
+              [class.text-[#2d2a4a]]="!isSelected"
+              class="py-3 rounded-2xl text-xs font-bold transition shadow-xs border border-white/80 flex flex-col items-center gap-0.5 active:scale-95"
+            >
+              <span>{{ w.label }}</span>
+              <span class="text-[9px] font-normal" [class.opacity-90]="isSelected" [class.opacity-60]="!isSelected">
+                {{ isSelected ? 'OFF' : 'WORK' }}
+              </span>
+            </button>
+          }
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs text-indigo-900 space-y-1">
+          <p class="font-bold flex items-center gap-1.5">
+            <mat-icon class="text-sm text-indigo-600">event_available</mat-icon>
+            Active Schedule
+          </p>
+          <p class="text-xs text-indigo-700">
+            {{ weekOffSummary() }} ({{ attService.weekOffDaysSet().size }} day(s) per week)
+          </p>
+        </div>
+
+        <button
+          type="button"
+          (click)="closeModal()"
+          class="w-full py-3.5 rounded-2xl text-xs font-bold text-white btn-coral shadow-md"
+        >
+          {{ t().save }}
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: HOLIDAY CALENDAR (SETTINGS DIALOG) ================= -->
+  @if (activeModal() === 'settingsHolidays') {
+    <div id="modal-settings-holidays-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-settings-holidays-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-settings-holidays-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-sheet-up border border-white/90 z-10 flex flex-col"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center">
+              <mat-icon class="text-base">celebration</mat-icon>
+            </div>
+            <h2 class="text-base font-bold text-[#2d2a4a]">{{ t().holidayCalendar }}</h2>
+          </div>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <p class="text-xs text-[#9b96b0]">
+            {{ holidaysSummary() }}
+          </p>
+          <button
+            id="btn-modal-add-holiday"
+            type="button"
+            (click)="openAddHolidayModal()"
+            class="px-3 py-1.5 rounded-full text-xs font-bold btn-coral text-white flex items-center gap-1 shadow-xs"
+          >
+            <mat-icon class="text-xs">add</mat-icon>
+            <span>{{ t().addHoliday }}</span>
+          </button>
+        </div>
+
+        <!-- Holidays List -->
+        <div class="space-y-2 flex-1 overflow-y-auto max-h-64 pr-1">
+          @if (attService.holidays().length === 0) {
+            <div class="text-center py-8 text-xs text-[#9b96b0] space-y-2">
+              <mat-icon class="text-3xl opacity-40">event_busy</mat-icon>
+              <p>No holidays declared yet.<br />Tap "+ Add Holiday" to add official holidays.</p>
+            </div>
+          } @else {
+            @for (hol of attService.holidays(); track hol.id) {
+              <div class="flex items-center justify-between p-3 rounded-2xl bg-white/80 border border-white/90 shadow-2xs">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0">
+                    <mat-icon class="text-sm">festival</mat-icon>
+                  </div>
+                  <div>
+                    <p class="text-xs font-bold text-[#2d2a4a]">{{ hol.label }}</p>
+                    <p class="text-[11px] text-[#9b96b0]">{{ hol.date }}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  (click)="deleteHoliday(hol.id)"
+                  aria-label="Delete Holiday"
+                  class="w-8 h-8 rounded-full flex items-center justify-center text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                >
+                  <mat-icon class="text-base">delete_outline</mat-icon>
+                </button>
+              </div>
+            }
+          }
+        </div>
+
+        <button
+          type="button"
+          (click)="closeModal()"
+          class="w-full py-3 rounded-2xl text-xs font-bold text-white btn-coral shadow-md"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: LANGUAGE SELECTION (SETTINGS DIALOG) ================= -->
+  @if (activeModal() === 'settingsLanguage') {
+    <div id="modal-settings-language-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-settings-language-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-settings-language-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-rose-100 text-[#ff6b6b] flex items-center justify-center">
+              <mat-icon class="text-base">translate</mat-icon>
+            </div>
+            <h2 class="text-base font-bold text-[#2d2a4a]">{{ t().language }}</h2>
+          </div>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <p class="text-xs text-[#9b96b0] leading-relaxed">
+          Choose your interface language. The whole application switches dynamically.
+        </p>
+
+        <div class="space-y-2.5 pt-1">
+          <!-- English Option -->
+          <button
+            type="button"
+            (click)="selectLanguage('en')"
+            [class.border-[#ff6b6b]]="currentLang() === 'en'"
+            [class.bg-[#ff6b6b]/5]="currentLang() === 'en'"
+            [class.bg-white/80]="currentLang() !== 'en'"
+            class="w-full p-3.5 rounded-2xl border flex items-center justify-between transition text-left cursor-pointer hover:bg-white shadow-2xs"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs">
+                EN
+              </div>
+              <div>
+                <p class="text-xs font-bold text-[#2d2a4a]">English</p>
+                <p class="text-[11px] text-[#9b96b0]">Default Global Language</p>
+              </div>
+            </div>
+            @if (currentLang() === 'en') {
+              <mat-icon class="text-lg text-[#ff6b6b]">check_circle</mat-icon>
+            }
+          </button>
+
+          <!-- Hindi Option -->
+          <button
+            type="button"
+            (click)="selectLanguage('hi')"
+            [class.border-[#ff6b6b]]="currentLang() === 'hi'"
+            [class.bg-[#ff6b6b]/5]="currentLang() === 'hi'"
+            [class.bg-white/80]="currentLang() !== 'hi'"
+            class="w-full p-3.5 rounded-2xl border flex items-center justify-between transition text-left cursor-pointer hover:bg-white shadow-2xs"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-xs">
+                हिं
+              </div>
+              <div>
+                <p class="text-xs font-bold text-[#2d2a4a]">हिंदी (Hindi)</p>
+                <p class="text-[11px] text-[#9b96b0]">भारतीय भाषा</p>
+              </div>
+            </div>
+            @if (currentLang() === 'hi') {
+              <mat-icon class="text-lg text-[#ff6b6b]">check_circle</mat-icon>
+            }
+          </button>
+        </div>
+
+        <button
+          type="button"
+          (click)="closeModal()"
+          class="w-full py-3 rounded-2xl text-xs font-bold text-white btn-coral shadow-md"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: ABOUT & OFFLINE PWA (SETTINGS DIALOG) ================= -->
+  @if (activeModal() === 'settingsAbout') {
+    <div id="modal-settings-about-container" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <button
+        id="modal-settings-about-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-settings-about-sheet"
+        class="relative w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-sheet-up border border-white/90 z-10"
+      >
+        <!-- Drag Handle for Mobile -->
+        <button type="button" class="sheet-handle cursor-pointer block mx-auto border-0 sm:hidden" (click)="closeModal()" aria-label="Close sheet"></button>
+
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+              <mat-icon class="text-base">smartphone</mat-icon>
+            </div>
+            <h2 class="text-base font-bold text-[#2d2a4a]">App & Offline Setup</h2>
+          </div>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <div class="space-y-3 text-xs text-[#2d2a4a]">
+          <div class="p-3.5 rounded-2xl bg-[#2d2a4a]/5 space-y-1">
+            <p class="font-bold text-sm text-[#2d2a4a]">ATO - Attendance Officer</p>
+            <p class="text-[11px] text-[#9b96b0]">Version 2.0.0 • Mobile First Progressive Web App</p>
+          </div>
+
+          <div class="space-y-2 text-[11px] text-[#9b96b0]">
+            <div class="flex items-center justify-between p-2 rounded-xl bg-white/70">
+              <span class="flex items-center gap-1.5 text-[#2d2a4a] font-medium">
+                <mat-icon class="text-sm text-emerald-600">lock</mat-icon>
+                Data Storage
+              </span>
+              <span class="font-semibold text-emerald-700">Zero Local Cache (Privacy-First)</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded-xl bg-white/70">
+              <span class="flex items-center gap-1.5 text-[#2d2a4a] font-medium">
+                <mat-icon class="text-sm text-sky-600">security</mat-icon>
+                Web App URL Encryption
+              </span>
+              <span class="font-semibold text-sky-700">AES-GCM Ciphered</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded-xl bg-white/70">
+              <span class="flex items-center gap-1.5 text-[#2d2a4a] font-medium">
+                <mat-icon class="text-sm text-purple-600">cloud</mat-icon>
+                Cloud Sync Engine
+              </span>
+              <span class="font-semibold text-purple-700">Google Sheets & Apps Script</span>
+            </div>
+          </div>
+
+          @if (isInstallable() || isIOS()) {
+            <button
+              type="button"
+              (click)="triggerPWAInstall()"
+              class="w-full py-3 rounded-2xl text-xs font-bold text-white btn-coral shadow-md flex items-center justify-center gap-1.5"
+            >
+              <mat-icon class="text-sm">download</mat-icon>
+              <span>{{ t().installApp }} to Home Screen</span>
+            </button>
+          } @else if (isInstalled()) {
+            <div class="p-3 rounded-2xl bg-emerald-50 text-emerald-700 text-center font-semibold text-xs flex items-center justify-center gap-1.5 border border-emerald-200">
+              <mat-icon class="text-sm">check_circle</mat-icon>
+              <span>App Installed & Ready Offline</span>
+            </div>
+          }
+        </div>
+
+        <button
+          type="button"
+          (click)="closeModal()"
+          class="w-full py-3 rounded-2xl text-xs font-bold text-[#2d2a4a] bg-white/80 hover:bg-white border border-white/80 shadow-xs"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: VIEW / COPY APPS SCRIPT CODE ================= -->
+  @if (activeModal() === 'viewCode') {
+    <div id="modal-view-code-container" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        id="modal-view-code-backdrop"
+        type="button"
+        (click)="closeModal()"
+        aria-label="Close dialog"
+        class="fixed inset-0 w-full h-full bg-[#2d2a4a]/45 animate-backdrop border-0 cursor-default"
+      ></button>
+      <div
+        id="modal-view-code"
+        class="relative w-full max-w-lg glass-card rounded-3xl p-6 shadow-2xl max-h-[88vh] flex flex-col space-y-3 animate-modal-pop border border-white/90 z-10"
+      >
+        <div class="flex items-center justify-between pb-2 border-b border-[#2d2a4a]/5 flex-shrink-0">
+          <div>
+            <h2 class="text-base font-bold text-[#2d2a4a]">Google Apps Script (Code.gs)</h2>
+            <p class="text-[11px] text-[#9b96b0]">Paste this into Extensions > Apps Script in your Google Sheet</p>
+          </div>
+          <button type="button" (click)="closeModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-[#9b96b0]">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <!-- 4 Steps Guide -->
+        <div class="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/70 text-xs text-amber-900 space-y-1 flex-shrink-0">
+          <p class="font-bold">4-Step Setup Guide:</p>
+          <ol class="list-decimal list-inside text-[11px] space-y-0.5 text-amber-800">
+            <li>Create a new spreadsheet at <strong>sheets.new</strong>.</li>
+            <li>Click <strong>Extensions > Apps Script</strong>, delete default code.</li>
+            <li>Click <strong>Copy Code.gs</strong> below and paste it, then Save.</li>
+            <li>Click <strong>Deploy > New deployment > Web App</strong> (Execute as: <em>Me</em>, Access: <em>Anyone</em>) and copy the URL into this app!</li>
+          </ol>
+        </div>
+
+        <!-- Code Block -->
+        <div class="flex-1 overflow-hidden relative rounded-2xl border border-[#2d2a4a]/10 bg-[#1e1b2e] text-white">
+          <pre class="p-3 text-[11px] font-mono overflow-y-auto max-h-[300px] text-gray-200 leading-relaxed">{{ appsScriptCode }}</pre>
+        </div>
+
+        <!-- Copy Action Button -->
+        <div class="pt-1 flex-shrink-0">
+          <button
+            id="btn-copy-script-code"
+            type="button"
+            (click)="copyCodeToClipboard()"
+            class="w-full py-3 rounded-2xl text-xs font-bold text-white btn-coral shadow-md flex items-center justify-center gap-1.5 transition active:scale-[0.99]"
+          >
+            <mat-icon class="text-base">{{ codeCopied() ? 'check' : 'content_copy' }}</mat-icon>
+            <span>{{ codeCopied() ? 'Copied to Clipboard!' : 'Copy Entire Code.gs' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= MODAL: IOS PWA INSTALL GUIDE ================= -->
+  @if (showIOSInstallGuide()) {
+    <div id="modal-ios-pwa-backdrop" class="fixed inset-0 z-50 flex items-center justify-center bg-[#2d2a4a]/50 p-4">
+      <div class="w-full max-w-sm glass-card rounded-3xl p-6 text-center space-y-3 shadow-2xl">
+        <div class="w-12 h-12 rounded-full bg-[#ff6b6b]/10 text-[#ff6b6b] mx-auto flex items-center justify-center">
+          <mat-icon class="text-2xl">ios_share</mat-icon>
+        </div>
+        <h3 class="text-base font-bold text-[#2d2a4a]">Install on iPhone / iPad</h3>
+        <p class="text-xs text-[#9b96b0] leading-relaxed">
+          1. Tap the <strong class="text-[#2d2a4a]">Share</strong> button in Safari's bottom toolbar.<br />
+          2. Scroll down and tap <strong class="text-[#2d2a4a]">Add to Home Screen</strong>.
+        </p>
+        <button
+          type="button"
+          (click)="showIOSInstallGuide.set(false)"
+          class="w-full py-2.5 rounded-xl btn-coral text-white text-xs font-bold"
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ================= IN-APP TOAST SNACKBAR ================= -->
+  @if (attService.toast(); as tst) {
+    <div
+      id="app-toast-snackbar"
+      class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl glass-card text-xs font-semibold shadow-xl flex items-center gap-2 border border-white/90 animate-in fade-in slide-in-from-bottom-3"
+      [class.text-emerald-700]="tst.type === 'success'"
+      [class.text-rose-700]="tst.type === 'error'"
+      [class.text-[#2d2a4a]]="tst.type === 'info'"
+    >
+      <mat-icon class="text-base">
+        {{ tst.type === 'success' ? 'check_circle' : tst.type === 'error' ? 'error' : 'info' }}
+      </mat-icon>
+      <span>{{ tst.message }}</span>
+    </div>
+  }
+
+</div>

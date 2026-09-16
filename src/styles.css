@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+
+  html, body {
+    background: linear-gradient(135deg, #fdeff2 0%, #f3e7f5 50%, #fde8ec 100%);
+    background-attachment: fixed;
+    color: #2d2a4a;
+    min-height: 100vh;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+}
+
+/* Glassmorphism surface utility matching reference screenshot */
+.glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 28px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.glass-card-sm {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 20px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.glass-header {
+  background: rgba(253, 239, 242, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.coral-gradient-bg {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+}
+
+.coral-gradient-text {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-coral {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+  box-shadow: 0 10px 24px rgba(255, 107, 107, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-coral:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(255, 107, 107, 0.45);
+}
+
+.btn-coral:active {
+  transform: translateY(1px);
+  box-shadow: 0 6px 16px rgba(255, 107, 107, 0.3);
+}
+
+/* Bottom Sheet & Modal Animations */
+@keyframes sheetSlideUp {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes backdropFadeIn {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+@keyframes modalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tabFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Applied Animation Classes */
+.animate-sheet-up {
+  animation: sheetSlideUp 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-backdrop {
+  animation: backdropFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity;
+}
+
+.animate-modal-pop {
+  animation: modalPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-tab-enter {
+  animation: tabFadeIn 0.25s ease-out forwards;
+}
+
+.sheet-handle {
+  width: 42px;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(45, 42, 74, 0.2);
+  margin: 0 auto 12px auto;
+  transition: background 0.2s ease;
+}
+
+.sheet-handle:hover {
+  background: rgba(45, 42, 74, 0.4);
+}
+
+/* Shimmer Loading Skeleton */
+.shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.4) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Hide scrollbars for clean mobile app feel */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Print Styles for clean Attendance & Monthly Report PDF generation */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  #app-bottom-nav,
+  #app-sticky-header,
+  #banner-sheet-connect,
+  #app-toast-snackbar,
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .glass-card {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    backdrop-filter: none !important;
+    background: #ffffff !important;
+  }
+}
+
